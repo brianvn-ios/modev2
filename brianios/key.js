@@ -1,5 +1,4 @@
-window.addEventListener("load", () => {
-  (function () {
+(function () {
   "use strict";
 
   const API_URL = "https://api-server-key.tranphat1357t.workers.dev";
@@ -21,9 +20,54 @@ window.addEventListener("load", () => {
     });
   }
 
-  // ===== DEVICE INFO =====
+  // ===== DEVICE =====
   function getDevice() {
-    return navigator.platform + " | " + navigator.userAgent.slice(0, 40);
+    return navigator.userAgent;
+  }
+
+  // ===== SAFE FETCH (CHỐNG CRASH) =====
+  async function safeFetch(url, options = {}) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+
+      if (!res.ok) throw new Error("HTTP " + res.status);
+
+      const text = await res.text();
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error("API không phải JSON");
+      }
+
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }
+
+  // ===== API =====
+  async function verifyKey(key, deviceId) {
+    return await safeFetch(API_URL + "/api/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, deviceId })
+    });
+  }
+
+  async function activateKey(key, deviceId) {
+    return await safeFetch(API_URL + "/api/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, deviceId })
+    });
   }
 
   // ===== UI =====
@@ -38,207 +82,90 @@ window.addEventListener("load", () => {
   justify-content: center;
   align-items: center;
   z-index: 999999;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: sans-serif;
   color: #0ff;
 }
-
 .box {
   width: 360px;
   padding: 25px;
   border-radius: 18px;
   background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 0 40px #00f0ff44;
 }
-
-.title {
-  text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 15px;
-  color: #00f0ff;
-}
-
-.label {
-  font-size: 12px;
-  margin: 8px 0 4px;
-  color: #00eaff;
-}
-
-.input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  background: #020617;
-  color: #0ff;
-  margin-bottom: 8px;
-}
-
-.row {
-  display: flex;
-  gap: 6px;
-}
-
-.btn {
-  flex: 1;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  background: linear-gradient(45deg,#00eaff,#0066ff);
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.btn.red {
-  background: linear-gradient(45deg,#ff0040,#ff4d4d);
-}
-
-.btn.gray {
-  background: #111;
-}
-
-.info {
-  font-size: 11px;
-  margin-top: 10px;
-  background: #020617;
-  padding: 8px;
-  border-radius: 8px;
-  color: #aaa;
-  word-break: break-all;
-}
-
-.status {
-  margin-top: 10px;
-  text-align: center;
-  font-size: 13px;
-}
-
-.time {
-  margin-top: 5px;
-  text-align: center;
-  font-size: 11px;
-  color: #666;
-}
+.title {text-align:center;font-size:22px;margin-bottom:10px;}
+.input {width:100%;padding:10px;border-radius:8px;background:#020617;color:#0ff;border:none;}
+.row {display:flex;gap:6px;margin-top:5px;}
+.btn {flex:1;padding:10px;border:none;border-radius:8px;background:#00aaff;color:white;}
+.info {font-size:11px;margin-top:10px;}
+.status {margin-top:10px;text-align:center;}
 </style>
 
 <div id="eliteUI">
   <div class="box">
-    <div class="title">⚡AimMode V2</div>
+    <div class="title">⚡ ELITE TURBO</div>
 
-    <div class="label">MÃ KÍCH HOẠT</div>
-    <div class="row">
-      <input id="keyInput" class="input" placeholder="VIP-XXX-XXX" />
-      <button id="pasteBtn" class="btn gray">DÁN</button>
-      <button id="clearBtn" class="btn red">XÓA</button>
-    </div>
-
-    <div class="label">MÃ THIẾT BỊ</div>
-    <div class="row">
-      <input id="deviceId" class="input" readonly />
-      <button id="copyBtn" class="btn gray">SAO CHÉP</button>
-    </div>
+    <input id="keyInput" class="input" placeholder="Nhập key..." />
 
     <div class="row">
-      <button id="checkBtn" class="btn">Check Key</button>
-      <button id="activeBtn" class="btn">Mở</button>
+      <button id="checkBtn" class="btn">Check</button>
+      <button id="activeBtn" class="btn">Active</button>
     </div>
-
-    <button id="resetBtn" class="btn gray" style="margin-top:8px;">RESET</button>
 
     <div class="info">
-      UID: <span id="uid"></span><br>
-      DEVICE: <span id="device"></span>
+      UID: <span id="uid"></span>
     </div>
 
-    <div id="status" class="status">Đang chờ...</div>
-    <div id="time" class="time"></div>
+    <div id="status" class="status">Ready...</div>
+    <div id="time" class="status"></div>
   </div>
 </div>
 `;
 
   document.body.appendChild(overlay);
-  document.body.style.overflow = "hidden";
 
-  // ===== SET INFO =====
   const deviceId = getDeviceId();
-  document.getElementById("deviceId").value = deviceId;
   document.getElementById("uid").innerText = deviceId;
-  document.getElementById("device").innerText = getDevice();
 
-  // ===== TIME UPDATE =====
   setInterval(() => {
     document.getElementById("time").innerText = getTime();
   }, 1000);
 
-  // ===== API =====
-  async function verifyKey(key) {
-    const res = await fetch(API_URL + "/api/verify", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ key, deviceId })
-    });
-    return res.json();
-  }
-
-  async function activateKey(key) {
-    const res = await fetch(API_URL + "/api/activate", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ key, deviceId })
-    });
-    return res.json();
-  }
-
-  // ===== BUTTON =====
   const status = document.getElementById("status");
 
-  document.getElementById("pasteBtn").onclick = async () => {
-    const text = await navigator.clipboard.readText();
-    document.getElementById("keyInput").value = text;
-  };
-
-  document.getElementById("clearBtn").onclick = () => {
-    document.getElementById("keyInput").value = "";
-  };
-
-  document.getElementById("copyBtn").onclick = () => {
-    navigator.clipboard.writeText(deviceId);
-    status.innerText = "📋 Đã copy UID";
-  };
-
-  document.getElementById("resetBtn").onclick = () => {
-    localStorage.removeItem("vip_key");
-    location.reload();
-  };
-
+  // ===== BUTTON CHECK =====
   document.getElementById("checkBtn").onclick = async () => {
-    const key = document.getElementById("keyInput").value;
+    const key = document.getElementById("keyInput").value.trim();
+    if (!key) return status.innerText = "❌ Nhập key";
+
     status.innerText = "Đang check...";
 
-    const res = await verifyKey(key);
+    const res = await verifyKey(key, deviceId);
+
     if (res.ok) {
       status.innerText = "✅ Key hợp lệ";
     } else {
-      status.innerText = "❌ " + (res.error || "Key lỗi");
+      status.innerText = "❌ " + (res.error || "Key sai");
     }
   };
 
+  // ===== BUTTON ACTIVE =====
   document.getElementById("activeBtn").onclick = async () => {
-    const key = document.getElementById("keyInput").value;
+    const key = document.getElementById("keyInput").value.trim();
+    if (!key) return status.innerText = "❌ Nhập key";
+
     status.innerText = "Đang kích hoạt...";
 
-    const res = await activateKey(key);
+    const res = await activateKey(key, deviceId);
+
     if (res.ok) {
       localStorage.setItem("vip_key", key);
-      status.innerText = "✅ Thành công!";
+      status.innerText = "✅ Thành công";
+
       setTimeout(() => {
         document.getElementById("eliteUI").remove();
-        document.body.style.overflow = "auto";
       }, 800);
+
     } else {
-      status.innerText = "❌ " + (res.error || "Kích hoạt lỗi");
+      status.innerText = "❌ " + (res.error || "Lỗi");
     }
   };
 
@@ -247,12 +174,11 @@ window.addEventListener("load", () => {
     const key = localStorage.getItem("vip_key");
     if (!key) return;
 
-    const res = await verifyKey(key);
+    const res = await verifyKey(key, deviceId);
+
     if (res.ok) {
       document.getElementById("eliteUI").remove();
-      document.body.style.overflow = "auto";
     }
   })();
 
 })();
-});
