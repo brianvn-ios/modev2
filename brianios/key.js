@@ -1,3 +1,10 @@
+// ===== HARD FIX WEBVIEW (QUAN TRỌNG NHẤT) =====
+if (!sessionStorage.getItem("app_loaded")) {
+  sessionStorage.setItem("app_loaded", "1");
+  location.reload(); // 🔥 fix lỗi phải bấm back
+}
+
+// ===== START APP =====
 window.addEventListener("load", () => {
   setTimeout(() => {
 
@@ -37,8 +44,8 @@ window.addEventListener("load", () => {
         }
       }
 
-      // ===== WARMUP API (QUAN TRỌNG) =====
-      safeFetch(API_URL);
+      // ===== WARMUP API =====
+      await safeFetch(API_URL);
 
       // ===== UI =====
       const overlay = document.createElement("div");
@@ -92,7 +99,7 @@ font-family:sans-serif;
         });
       }
 
-      // ===== AUTO LOGIN (FIX BACK BUG) =====
+      // ===== AUTO LOGIN (FIX 100%) =====
       await new Promise(r => setTimeout(r, 1500));
 
       const savedKey = localStorage.getItem("vip_key");
@@ -119,7 +126,9 @@ font-family:sans-serif;
 
         const res = await verifyKey(key);
 
-        status.innerText = res.ok ? "✅ Key OK" : "❌ " + (res.error || "Sai key");
+        status.innerText = res.ok
+          ? "✅ Key hợp lệ"
+          : "❌ " + (res.error || "Sai key");
       };
 
       document.getElementById("activeBtn").onclick = async () => {
@@ -145,5 +154,5 @@ font-family:sans-serif;
 
     })();
 
-  }, 800);
+  }, 1200);
 });
