@@ -1,11 +1,12 @@
 window.addEventListener("load", () => {
   setTimeout(() => {
 
-    (function () {
+    (async function () {
       "use strict";
 
       const API_URL = "https://api-server-key.tranphat1357t.workers.dev";
 
+      // ===== DEVICE =====
       function getDeviceId() {
         let id = localStorage.getItem("device_id");
         if (!id) {
@@ -15,35 +16,67 @@ window.addEventListener("load", () => {
         return id;
       }
 
-      function getTime() {
-        return new Date().toLocaleString("vi-VN", {
-          timeZone: "Asia/Ho_Chi_Minh"
-        });
-      }
+      const deviceId = getDeviceId();
 
-      async function safeFetch(url, options = {}) {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000);
+      // ===== SAFE FETCH + RETRY =====
+      async function safeFetch(url, options = {}, retry = 5) {
+        for (let i = 0; i < retry; i++) {
+          try {
+            const res = await fetch(url, options);
 
-          const res = await fetch(url, {
-            ...options,
-            signal: controller.signal
-          });
+            if (!res.ok) throw new Error("HTTP " + res.status);
 
-          clearTimeout(timeout);
+            return await res.json();
 
-          if (!res.ok) throw new Error("HTTP " + res.status);
-
-          const data = await res.json();
-          return data;
-
-        } catch (err) {
-          return { ok: false, error: err.message };
+          } catch (err) {
+            if (i === retry - 1) {
+              return { ok: false, error: err.message };
+            }
+            await new Promise(r => setTimeout(r, 1200));
+          }
         }
       }
 
-      async function verifyKey(key, deviceId) {
+      // ===== WARMUP API (QUAN TRỌNG) =====
+      safeFetch(API_URL);
+
+      // ===== UI =====
+      const overlay = document.createElement("div");
+      overlay.innerHTML = `
+<div id="eliteUI" style="
+position:fixed;
+inset:0;
+background:#000;
+display:flex;
+justify-content:center;
+align-items:center;
+z-index:999999;
+color:#0ff;
+font-family:sans-serif;
+">
+  <div style="width:320px;text-align:center;">
+    <h2>⚡ ELITE TURBO</h2>
+
+    <input id="keyInput" placeholder="Nhập key"
+      style="width:100%;padding:10px;border-radius:8px;border:none;background:#111;color:#0ff;" />
+
+    <div style="margin-top:10px;">
+      <button id="checkBtn">Check</button>
+      <button id="activeBtn">Active</button>
+    </div>
+
+    <p id="status">🔄 Đang khởi động...</p>
+    <p style="font-size:11px;">UID: ${deviceId}</p>
+  </div>
+</div>
+`;
+
+      document.body.appendChild(overlay);
+
+      const status = document.getElementById("status");
+
+      // ===== API =====
+      async function verifyKey(key) {
         return await safeFetch(API_URL + "/api/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -51,7 +84,7 @@ window.addEventListener("load", () => {
         });
       }
 
-      async function activateKey(key, deviceId) {
+      async function activateKey(key) {
         return await safeFetch(API_URL + "/api/activate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -59,60 +92,58 @@ window.addEventListener("load", () => {
         });
       }
 
-      // ===== UI =====
-      const overlay = document.createElement("div");
-      overlay.innerHTML = `
-<div id="eliteUI" style="position:fixed;inset:0;background:#000;display:flex;justify-content:center;align-items:center;color:#0ff;z-index:999999">
-<div>
-<h2>⚡ ELITE TURBO</h2>
-<input id="keyInput" placeholder="Nhập key" />
-<br><br>
-<button id="checkBtn">Check</button>
-<button id="activeBtn">Active</button>
-<p id="status">Ready...</p>
-<p id="uid"></p>
-</div>
-</div>
-`;
+      // ===== AUTO LOGIN (FIX BACK BUG) =====
+      await new Promise(r => setTimeout(r, 1500));
 
-      document.body.appendChild(overlay);
+      const savedKey = localStorage.getItem("vip_key");
 
-      const deviceId = getDeviceId();
-      document.getElementById("uid").innerText = deviceId;
+      if (savedKey) {
+        status.innerText = "🔄 Đang kiểm tra key...";
 
-      const status = document.getElementById("status");
+        const res = await verifyKey(savedKey);
 
+        if (res.ok) {
+          document.getElementById("eliteUI").remove();
+          return;
+        }
+      }
+
+      status.innerText = "✅ Sẵn sàng";
+
+      // ===== BUTTON =====
       document.getElementById("checkBtn").onclick = async () => {
         const key = document.getElementById("keyInput").value.trim();
         if (!key) return status.innerText = "❌ Nhập key";
 
-        status.innerText = "Đang check...";
+        status.innerText = "🔄 Đang check...";
 
-        const res = await verifyKey(key, deviceId);
+        const res = await verifyKey(key);
 
-        status.innerText = res.ok ? "✅ Key OK" : "❌ " + res.error;
+        status.innerText = res.ok ? "✅ Key OK" : "❌ " + (res.error || "Sai key");
       };
 
       document.getElementById("activeBtn").onclick = async () => {
         const key = document.getElementById("keyInput").value.trim();
         if (!key) return status.innerText = "❌ Nhập key";
 
-        status.innerText = "Đang kích hoạt...";
+        status.innerText = "🔄 Đang kích hoạt...";
 
-        const res = await activateKey(key, deviceId);
+        const res = await activateKey(key);
 
         if (res.ok) {
           localStorage.setItem("vip_key", key);
           status.innerText = "✅ Thành công";
+
           setTimeout(() => {
             document.getElementById("eliteUI").remove();
           }, 800);
+
         } else {
-          status.innerText = "❌ " + res.error;
+          status.innerText = "❌ " + (res.error || "Lỗi");
         }
       };
 
     })();
 
-  }, 600);
+  }, 800);
 });
