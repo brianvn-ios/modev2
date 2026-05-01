@@ -1,184 +1,118 @@
-(function () {
-  "use strict";
+window.addEventListener("load", () => {
+  setTimeout(() => {
 
-  const API_URL = "https://api-server-key.tranphat1357t.workers.dev";
+    (function () {
+      "use strict";
 
-  // ===== DEVICE ID =====
-  function getDeviceId() {
-    let id = localStorage.getItem("device_id");
-    if (!id) {
-      id = "DEV-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-      localStorage.setItem("device_id", id);
-    }
-    return id;
-  }
+      const API_URL = "https://api-server-key.tranphat1357t.workers.dev";
 
-  // ===== TIME =====
-  function getTime() {
-    return new Date().toLocaleString("vi-VN", {
-      timeZone: "Asia/Ho_Chi_Minh"
-    });
-  }
-
-  // ===== DEVICE =====
-  function getDevice() {
-    return navigator.userAgent;
-  }
-
-  // ===== SAFE FETCH (CHỐNG CRASH) =====
-  async function safeFetch(url, options = {}) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch(url, {
-        ...options,
-        signal: controller.signal
-      });
-
-      clearTimeout(timeout);
-
-      if (!res.ok) throw new Error("HTTP " + res.status);
-
-      const text = await res.text();
-
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new Error("API không phải JSON");
+      function getDeviceId() {
+        let id = localStorage.getItem("device_id");
+        if (!id) {
+          id = "DEV-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+          localStorage.setItem("device_id", id);
+        }
+        return id;
       }
 
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  }
+      function getTime() {
+        return new Date().toLocaleString("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh"
+        });
+      }
 
-  // ===== API =====
-  async function verifyKey(key, deviceId) {
-    return await safeFetch(API_URL + "/api/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, deviceId })
-    });
-  }
+      async function safeFetch(url, options = {}) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
 
-  async function activateKey(key, deviceId) {
-    return await safeFetch(API_URL + "/api/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, deviceId })
-    });
-  }
+          const res = await fetch(url, {
+            ...options,
+            signal: controller.signal
+          });
 
-  // ===== UI =====
-  const overlay = document.createElement("div");
-  overlay.innerHTML = `
-<style>
-#eliteUI {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at top, #020617, #000);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999999;
-  font-family: sans-serif;
-  color: #0ff;
-}
-.box {
-  width: 360px;
-  padding: 25px;
-  border-radius: 18px;
-  background: rgba(0,0,0,0.6);
-}
-.title {text-align:center;font-size:22px;margin-bottom:10px;}
-.input {width:100%;padding:10px;border-radius:8px;background:#020617;color:#0ff;border:none;}
-.row {display:flex;gap:6px;margin-top:5px;}
-.btn {flex:1;padding:10px;border:none;border-radius:8px;background:#00aaff;color:white;}
-.info {font-size:11px;margin-top:10px;}
-.status {margin-top:10px;text-align:center;}
-</style>
+          clearTimeout(timeout);
 
-<div id="eliteUI">
-  <div class="box">
-    <div class="title">⚡ ELITE TURBO</div>
+          if (!res.ok) throw new Error("HTTP " + res.status);
 
-    <input id="keyInput" class="input" placeholder="Nhập key..." />
+          const data = await res.json();
+          return data;
 
-    <div class="row">
-      <button id="checkBtn" class="btn">Check</button>
-      <button id="activeBtn" class="btn">Active</button>
-    </div>
+        } catch (err) {
+          return { ok: false, error: err.message };
+        }
+      }
 
-    <div class="info">
-      UID: <span id="uid"></span>
-    </div>
+      async function verifyKey(key, deviceId) {
+        return await safeFetch(API_URL + "/api/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, deviceId })
+        });
+      }
 
-    <div id="status" class="status">Ready...</div>
-    <div id="time" class="status"></div>
-  </div>
+      async function activateKey(key, deviceId) {
+        return await safeFetch(API_URL + "/api/activate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, deviceId })
+        });
+      }
+
+      // ===== UI =====
+      const overlay = document.createElement("div");
+      overlay.innerHTML = `
+<div id="eliteUI" style="position:fixed;inset:0;background:#000;display:flex;justify-content:center;align-items:center;color:#0ff;z-index:999999">
+<div>
+<h2>⚡ ELITE TURBO</h2>
+<input id="keyInput" placeholder="Nhập key" />
+<br><br>
+<button id="checkBtn">Check</button>
+<button id="activeBtn">Active</button>
+<p id="status">Ready...</p>
+<p id="uid"></p>
+</div>
 </div>
 `;
 
-  document.body.appendChild(overlay);
+      document.body.appendChild(overlay);
 
-  const deviceId = getDeviceId();
-  document.getElementById("uid").innerText = deviceId;
+      const deviceId = getDeviceId();
+      document.getElementById("uid").innerText = deviceId;
 
-  setInterval(() => {
-    document.getElementById("time").innerText = getTime();
-  }, 1000);
+      const status = document.getElementById("status");
 
-  const status = document.getElementById("status");
+      document.getElementById("checkBtn").onclick = async () => {
+        const key = document.getElementById("keyInput").value.trim();
+        if (!key) return status.innerText = "❌ Nhập key";
 
-  // ===== BUTTON CHECK =====
-  document.getElementById("checkBtn").onclick = async () => {
-    const key = document.getElementById("keyInput").value.trim();
-    if (!key) return status.innerText = "❌ Nhập key";
+        status.innerText = "Đang check...";
 
-    status.innerText = "Đang check...";
+        const res = await verifyKey(key, deviceId);
 
-    const res = await verifyKey(key, deviceId);
+        status.innerText = res.ok ? "✅ Key OK" : "❌ " + res.error;
+      };
 
-    if (res.ok) {
-      status.innerText = "✅ Key hợp lệ";
-    } else {
-      status.innerText = "❌ " + (res.error || "Key sai");
-    }
-  };
+      document.getElementById("activeBtn").onclick = async () => {
+        const key = document.getElementById("keyInput").value.trim();
+        if (!key) return status.innerText = "❌ Nhập key";
 
-  // ===== BUTTON ACTIVE =====
-  document.getElementById("activeBtn").onclick = async () => {
-    const key = document.getElementById("keyInput").value.trim();
-    if (!key) return status.innerText = "❌ Nhập key";
+        status.innerText = "Đang kích hoạt...";
 
-    status.innerText = "Đang kích hoạt...";
+        const res = await activateKey(key, deviceId);
 
-    const res = await activateKey(key, deviceId);
+        if (res.ok) {
+          localStorage.setItem("vip_key", key);
+          status.innerText = "✅ Thành công";
+          setTimeout(() => {
+            document.getElementById("eliteUI").remove();
+          }, 800);
+        } else {
+          status.innerText = "❌ " + res.error;
+        }
+      };
 
-    if (res.ok) {
-      localStorage.setItem("vip_key", key);
-      status.innerText = "✅ Thành công";
+    })();
 
-      setTimeout(() => {
-        document.getElementById("eliteUI").remove();
-      }, 800);
-
-    } else {
-      status.innerText = "❌ " + (res.error || "Lỗi");
-    }
-  };
-
-  // ===== AUTO LOGIN =====
-  (async () => {
-    const key = localStorage.getItem("vip_key");
-    if (!key) return;
-
-    const res = await verifyKey(key, deviceId);
-
-    if (res.ok) {
-      document.getElementById("eliteUI").remove();
-    }
-  })();
-
-})();
+  }, 600);
+});
