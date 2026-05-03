@@ -241,16 +241,43 @@
     }
   };
 
-  // ===== AUTO LOGIN =====
-  (async () => {
-    const key = localStorage.getItem("vip_key");
-    if (!key) return;
+// ===== AUTO LOGIN =====
+(async () => {
+  const key = localStorage.getItem("vip_key");
+  if (!key) return;
 
+  const res = await verifyKey(key);
+  if (res.ok) {
+    document.getElementById("eliteUI").remove();
+    document.body.style.overflow = "auto";
+  }
+})();
+// ===== AUTO RE-CHECK KEY =====
+let checking = false;
+
+setInterval(async () => {
+  const key = localStorage.getItem("vip_key");
+
+  // ❌ Không có key hoặc đang ở màn login → bỏ
+  if (!key || document.getElementById("eliteUI")) return;
+
+  // ❌ Tránh spam request
+  if (checking) return;
+  checking = true;
+
+  try {
     const res = await verifyKey(key);
-    if (res.ok) {
-      document.getElementById("eliteUI").remove();
-      document.body.style.overflow = "auto";
-    }
-  })();
 
+    if (!res.ok) {
+      alert("❌ Key đã hết hạn hoặc bị thu hồi!");
+      localStorage.removeItem("vip_key");
+      location.reload();
+    }
+
+  } catch (err) {
+    console.log("Lỗi check key:", err);
+  }
+
+  checking = false;
+}, 30000); // 30 giây
 })();
